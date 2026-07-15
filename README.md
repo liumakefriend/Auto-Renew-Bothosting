@@ -15,6 +15,7 @@
 | DISCORD_TOKEN      | ✅ 必填  | Discord Token，SESSION_TOKEN失效时自动OAuth登录        |
 | GH_TOKEN           | ❌ 可选  | GitHub(classic) token,用于自动更新session_token,以ghp_xxx开头|
 | SINGBOX_NODE       | ✅ 必填  | sing-box 节点链接，支持 `anytls://`、`hy2://`、`hysteria2://` |
+| NODE_LINK          | ❌ 兼容  | 旧 Secret 名称；未配置 `SINGBOX_NODE` 时自动使用 |
 | TG_BOT_TOKEN       | ❌ 可选  | Telegram Bot Token（用于发送通知）                      |
 | TG_CHAT_ID         | ❌ 可选  | Telegram Chat ID（接收通知的用户或群组 ID）               |
 

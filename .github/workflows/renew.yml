@@ -46,7 +46,7 @@ jobs:
 
       - name: ⚙ 启动 sing-box 代理
         env:
-          SINGBOX_NODE: ${{ secrets.SINGBOX_NODE }}
+          SINGBOX_NODE: ${{ secrets.SINGBOX_NODE || secrets.NODE_LINK }}
         run: |
           test -n "$SINGBOX_NODE" || (echo "SINGBOX_NODE secret is required" && exit 1)
           python - <<'PY'
