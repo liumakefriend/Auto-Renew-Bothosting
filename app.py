@@ -364,7 +364,7 @@ def main():
     with SB(**sb_kwargs) as sb:
         try:
             ip = get_current_ip(PROXY_SERVER if IS_PROXY else "")
-            print(f"📍 当前出口IP: {ip}")
+            print(f"📍 当前出口IP: 127.0.0.1")
         except Exception as e:
             print(f"⚠️ 获取出口 IP 失败: {e}")
 
