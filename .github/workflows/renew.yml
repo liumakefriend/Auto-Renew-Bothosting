@@ -23,16 +23,82 @@ jobs:
       - name: 🛠️ 安装系统依赖和 Python 依赖
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk jq wget
+          sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk jq wget netcat-openbsd
           pip install seleniumbase requests
           seleniumbase install chromedriver
 
-      - name: ⚙ 设置代理 (sing-box)
-        continue-on-error: true
-        env:
-          NODE_LINK: ${{ secrets.NODE_LINK }}
+      - name: 📦 安装 sing-box
         run: |
-          bash <(wget -qO- https://main.ssss.nyc.mn/setup_proxy.sh)
+          sudo mkdir -p /etc/apt/keyrings
+          sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc
+          sudo chmod a+r /etc/apt/keyrings/sagernet.asc
+          cat <<'EOF' | sudo tee /etc/apt/sources.list.d/sagernet.sources
+          Types: deb
+          URIs: https://deb.sagernet.org/
+          Suites: *
+          Components: *
+          Enabled: yes
+          Signed-By: /etc/apt/keyrings/sagernet.asc
+          EOF
+          sudo apt-get update
+          sudo apt-get install -y sing-box
+          sing-box version
+
+      - name: ⚙ 启动 sing-box 代理
+        env:
+          SINGBOX_NODE: ${{ secrets.SINGBOX_NODE }}
+        run: |
+          test -n "$SINGBOX_NODE" || (echo "SINGBOX_NODE secret is required" && exit 1)
+          python - <<'PY'
+          import json
+          import os
+          from urllib.parse import parse_qs, unquote, urlparse
+
+          node = os.environ["SINGBOX_NODE"]
+          parsed = urlparse(node)
+          query = parse_qs(parsed.query)
+          scheme = parsed.scheme.lower()
+          if scheme not in {"anytls", "hy2", "hysteria2"}:
+              raise SystemExit("SINGBOX_NODE must be an anytls://, hy2:// or hysteria2:// URL")
+          if not parsed.hostname or not parsed.port:
+              raise SystemExit("SINGBOX_NODE must include a server and port")
+          password = unquote(parsed.username or "")
+          if not password:
+              raise SystemExit("SINGBOX_NODE must include a password")
+          insecure_value = query.get("insecure", query.get("allowInsecure", ["0"]))[0]
+          insecure = insecure_value.lower() in {"1", "true", "yes"}
+          server_name = query.get("sni", query.get("peer", [parsed.hostname]))[0]
+          outbound = {
+              "type": "anytls" if scheme == "anytls" else "hysteria2",
+              "tag": "proxy", "server": parsed.hostname, "server_port": parsed.port,
+              "password": password,
+              "tls": {"enabled": True, "server_name": server_name, "insecure": insecure},
+          }
+          if scheme in {"hy2", "hysteria2"} and query.get("obfs", [""])[0] == "salamander":
+              obfs_password = query.get("obfs-password", query.get("obfs_password", [""]))[0]
+              if not obfs_password:
+                  raise SystemExit("Hysteria2 salamander obfs requires obfs-password")
+              outbound["obfs"] = {"type": "salamander", "password": obfs_password}
+          config = {
+              "log": {"level": "info"},
+              "inbounds": [{"type": "socks", "tag": "socks-in", "listen": "127.0.0.1", "listen_port": 1080}],
+              "outbounds": [outbound, {"type": "direct", "tag": "direct"}],
+              "route": {"final": "proxy"},
+          }
+          with open("sing-box.json", "w", encoding="utf-8") as fh:
+              json.dump(config, fh, indent=2)
+          PY
+          sing-box check -c sing-box.json
+          nohup sing-box run -c sing-box.json > sing-box.log 2>&1 &
+          for i in {1..20}; do
+            if nc -z 127.0.0.1 1080; then
+              echo "sing-box SOCKS proxy is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat sing-box.log
+          exit 1
 
       - name: 🚀 运行续期脚本
         env:
@@ -42,6 +108,8 @@ jobs:
           SESSION_TOKEN: ${{ secrets.SESSION_TOKEN }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          IS_PROXY: "true"
+          PROXY_SERVER: socks5://127.0.0.1:1080
         run: |
           xvfb-run --auto-servernum python3 app.py
 
@@ -52,7 +120,7 @@ jobs:
           pkill -f chromedriver || true
           pkill -f chrome || true
           pkill -f Xvfb || true
-          rm -f sing-box sing-box-config.json sing-box.log
+          rm -f sing-box.json sing-box.log
 
       - name: 🧹 清理旧的工作流运行记录
         if: always()

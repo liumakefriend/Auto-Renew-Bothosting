@@ -14,7 +14,7 @@
 | SESSION_TOKEN      | ❌ 可选  | Bot-hosting session_token，cookie里获取               |
 | DISCORD_TOKEN      | ✅ 必填  | Discord Token，SESSION_TOKEN失效时自动OAuth登录        |
 | GH_TOKEN           | ❌ 可选  | GitHub(classic) token,用于自动更新session_token,以ghp_xxx开头|
-| NODE_LINK          | ❌ 可选  | 代理链接（如 vless:// vmess:// trojan:// hysteria2:// tuic:// anytls:// socks5:// )|
+| SINGBOX_NODE       | ✅ 必填  | sing-box 节点链接，支持 `anytls://`、`hy2://`、`hysteria2://` |
 | TG_BOT_TOKEN       | ❌ 可选  | Telegram Bot Token（用于发送通知）                      |
 | TG_CHAT_ID         | ❌ 可选  | Telegram Chat ID（接收通知的用户或群组 ID）               |
 
@@ -58,7 +58,7 @@
 
 ## 注意事项
 * 必填变量必须要填写
-* NODE_LINK支持的代理协议有：vmess,vless,hysteria2,tuic,anytls,socks5等
+* `SINGBOX_NODE` 支持 `anytls://`、`hy2://` 和 `hysteria2://` 节点链接；工作流会启动本地 SOCKS5 代理供浏览器和 API 请求使用
 * 自动续期不代表可以无底线的薅羊毛,不建议多账号
 * cron运行时间不一定准确,得根据实际到期时间修改,可在设置里暂停actions功能再开启
 
